@@ -24,7 +24,7 @@ jobs:
 
     - name: Build the EXE
       run: |
-        pyinstaller --noconsole --onefile --splash loading.jpg validator.py
+        pyinstaller --noconsole --onefile --splash loading.png validator.py
 
     - name: Upload the finished EXE
       uses: actions/upload-artifact@v4
