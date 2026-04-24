@@ -1,0 +1,85 @@
+{
+  "Flight": {
+    "subscription": "$8,150,000",
+    "commitment": "",
+    "highlights": [
+      {
+        "title": "Target IRR",
+        "value": "25% - 60%"
+      },
+      {
+        "title": "Target MOIC",
+        "value": "1.5x - 2.2x"
+      },
+      {
+        "title": "Target holding Period",
+        "value": "1.5 – 3 Years"
+      },
+      {
+        "title": "Distribution",
+        "value": "Quarterly"
+      }
+    ],
+    "highlightsLabel": "",
+    "about": [
+      {
+        "title": "Underlying Asset",
+        "value": "Airbus 321-200",
+        "colSpan": 3
+      },
+      {
+        "title": "Discount at Entry",
+        "value": "20%+",
+        "colSpan": 2
+      },
+      {
+        "title": "Yield",
+        "value": "3%",
+        "colSpan": 2
+      },
+      {
+        "title": "Transaction Closing",
+        "value": "Q1 2026",
+        "colSpan": 2
+      },
+      {
+        "title": "Transaction Partner",
+        "value": "Novus Capital Advisors",
+        "fullWidth": true,
+        "colSpan": 3
+      }
+    ],
+    "aboutLabel": "",
+    "kpis": [
+      {
+        "title": "Target IRR",
+        "value": "25% - 60%"
+      },
+      {
+        "title": "Holding Period",
+        "value": "1.5 - 3 Years"
+      },
+      {
+        "title": "Target MOIC",
+        "value": "1.5x – 2.2x",
+        "webOnly": true
+      },
+      {
+        "title": "Distribution",
+        "value": "Quarterly",
+        "webOnly": true
+      }
+    ],
+    "coInvestors": [],
+    "coInvestorsLabel": "",
+    "companyThesis": [],
+    "companyThesisLabel": "",
+    "keyPersonel": [],
+    "info": "",
+    "note": "",
+    "downloadLink": "",
+    "latestUpdateLink": "",
+    "downloadLinkPlacement": "section",
+    "ownershipBreakdown": null
+  }
+}
