@@ -1,0 +1,32 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest # This requests a Windows PC
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pydantic pyinstaller
+
+    - name: Build the EXE
+      run: |
+        pyinstaller --noconsole --onefile --splash loading.jpg validator.py
+
+    - name: Upload the finished EXE
+      uses: actions/upload-artifact@v4
+      with:
+        name: Windows-Validator-App
+        path: dist/validator.exe
