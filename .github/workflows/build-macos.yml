@@ -1,0 +1,35 @@
+name: Build macOS App
+
+on:
+  push:
+    branches: [ release ]
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Build the macOS app
+      run: |
+        pyinstaller --windowed validator.py
+
+    - name: Upload the finished app
+      uses: actions/upload-artifact@v5
+      with:
+        name: macOS-Validator-App
+        path: dist/validator.app
+        retention-days: 30
