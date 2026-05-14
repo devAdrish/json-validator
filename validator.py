@@ -1,6 +1,8 @@
 import json
+import os
+import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, ValidationError
 
@@ -42,6 +44,7 @@ class OwnershipBreakdown(BaseModel):
     currency: str
     currencySymbol: str
     ownershipText: str
+    pricePerShareDisclaimer: Optional[str] = None
     chain: List[ChainItem]
 
 class MainItem(BaseModel):
@@ -87,40 +90,136 @@ def format_friendly_error(item_name, error):
         
     return f"❌ [{item_name}]\n   Location: {readable_path}\n   Issue:    {friendly_msg}\n\n"
 
-def show_error_window(root, error_text):
-    """Creates a custom, scrollable popup window that resizes to fit the errors."""
-    error_win = tk.Toplevel(root)
-    error_win.title("Validation Failed")
-    
-    # We removed error_win.geometry("600x450") so it can auto-resize
-    
-    lbl = tk.Label(error_win, text="The following errors were found in the JSON file:", fg="red", font=("Arial", 12, "bold"))
-    lbl.pack(pady=10, padx=20)
+def validate_json_data(json_data):
+    """Returns (success_bool, message_or_error_text)."""
+    if not isinstance(json_data, dict):
+        return False, "❌ Top level of JSON must be an object (dictionary).\n"
 
-    text_frame = tk.Frame(error_win)
-    text_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=5)
+    all_errors = []
 
-    scrollbar = tk.Scrollbar(text_frame)
-    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    if "__disclaimers" not in json_data:
+        all_errors.append("❌ [Top Level]\n   Location: __disclaimer\n   Issue:    This field is missing but is required.\n\n")
 
-    # Calculate how many lines of text we have
-    line_count = error_text.count('\n')
-    # Set the box height to match the text, but keep it between 4 and 20 lines tall
-    dynamic_height = min(max(line_count, 4), 20)
+    for item_name, item_data in json_data.items():
+        if item_name.startswith("__"):
+            continue
+        try:
+            MainItem(**item_data)
+        except ValidationError as e:
+            for error in e.errors():
+                friendly_error = format_friendly_error(item_name, error)
+                all_errors.append(friendly_error)
 
-    # Apply the dynamic height to the Text widget
-    text_widget = tk.Text(text_frame, yscrollcommand=scrollbar.set, wrap=tk.WORD, 
-                          font=("Courier", 13), height=dynamic_height, width=65)
-    text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-    scrollbar.config(command=text_widget.yview)
+    if not all_errors:
+        return True, "✅ Validation Passed! All data matches your template perfectly."
+    return False, "".join(all_errors)
 
-    text_widget.insert(tk.END, error_text)
-    text_widget.config(state=tk.DISABLED)
 
-    btn = tk.Button(error_win, text="Close", command=error_win.destroy, width=15)
-    btn.pack(pady=10)
+class ValidatorApp:
+    def __init__(self, root):
+        self.root = root
+        root.title("JSON Validator")
+        root.geometry("720x520")
+        root.minsize(560, 400)
 
-    error_win.wait_window()
+        self.file_label_var = tk.StringVar(value="No file selected")
+        self.status_var = tk.StringVar(value="")
+
+        top_frame = tk.Frame(root, pady=12, padx=20)
+        top_frame.pack(fill=tk.X)
+
+        file_lbl = tk.Label(top_frame, textvariable=self.file_label_var,
+                            font=("Arial", 12, "bold"), anchor="w")
+        file_lbl.pack(fill=tk.X)
+
+        btn_frame = tk.Frame(root, padx=20)
+        btn_frame.pack(fill=tk.X)
+
+        self.open_btn = tk.Button(btn_frame, text="Open JSON File…",
+                                  command=self.on_open, width=20,
+                                  font=("Arial", 11))
+        self.open_btn.pack(side=tk.LEFT, pady=(0, 8))
+
+        self.progress = ttk.Progressbar(btn_frame, mode="indeterminate", length=180)
+
+        status_lbl = tk.Label(root, textvariable=self.status_var,
+                              font=("Arial", 11, "bold"), anchor="w", padx=20)
+        status_lbl.pack(fill=tk.X)
+        self.status_lbl = status_lbl
+
+        text_frame = tk.Frame(root, padx=20, pady=10)
+        text_frame.pack(fill=tk.BOTH, expand=True)
+
+        scrollbar = tk.Scrollbar(text_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.text_widget = tk.Text(text_frame, yscrollcommand=scrollbar.set,
+                                   wrap=tk.WORD, font=("Courier", 12),
+                                   state=tk.DISABLED, height=14)
+        self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.text_widget.yview)
+
+    def set_results(self, text, color):
+        self.text_widget.config(state=tk.NORMAL)
+        self.text_widget.delete("1.0", tk.END)
+        self.text_widget.insert(tk.END, text)
+        self.text_widget.config(state=tk.DISABLED, fg=color)
+
+    def clear_results(self):
+        self.status_var.set("")
+        self.text_widget.config(state=tk.NORMAL)
+        self.text_widget.delete("1.0", tk.END)
+        self.text_widget.config(state=tk.DISABLED)
+
+    def start_loading(self):
+        self.open_btn.config(state=tk.DISABLED)
+        self.progress.pack(side=tk.LEFT, padx=10, pady=(0, 8))
+        self.progress.start(10)
+        self.status_var.set("Validating…")
+        self.status_lbl.config(fg="black")
+
+    def stop_loading(self):
+        self.progress.stop()
+        self.progress.pack_forget()
+        self.open_btn.config(state=tk.NORMAL)
+
+    def on_open(self):
+        file_path = filedialog.askopenfilename(
+            title="Select a JSON File to Validate",
+            filetypes=[("JSON Files", "*.json")]
+        )
+        if not file_path:
+            return
+
+        self.file_label_var.set(f"File: {os.path.basename(file_path)}")
+        self.clear_results()
+        self.start_loading()
+
+        thread = threading.Thread(target=self._run_validation, args=(file_path,), daemon=True)
+        thread.start()
+
+    def _run_validation(self, file_path):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                json_data = json.load(file)
+            success, message = validate_json_data(json_data)
+            self.root.after(0, self._on_done, success, message)
+        except json.JSONDecodeError as e:
+            self.root.after(0, self._on_done, False, f"❌ The file is not valid JSON.\nError: {str(e)}")
+        except Exception as e:
+            self.root.after(0, self._on_done, False, f"❌ An unexpected error occurred:\n{str(e)}")
+
+    def _on_done(self, success, message):
+        self.stop_loading()
+        if success:
+            self.status_var.set("Validation Passed")
+            self.status_lbl.config(fg="#0a7d2c")
+            self.set_results(message, "#0a7d2c")
+        else:
+            self.status_var.set("Validation Failed")
+            self.status_lbl.config(fg="#b00020")
+            self.set_results(message, "#b00020")
+
 
 def main():
     try:
@@ -130,48 +229,9 @@ def main():
         pass
 
     root = tk.Tk()
-    root.withdraw() # Hide the empty background window
+    ValidatorApp(root)
+    root.mainloop()
 
-    file_path = filedialog.askopenfilename(
-        title="Select a JSON File to Validate",
-        filetypes=[("JSON Files", "*.json")]
-    )
-
-    if not file_path:
-        return
-
-    try:
-        with open(file_path, 'r', encoding='utf-8') as file:
-            json_data = json.load(file)
-            
-        if not isinstance(json_data, dict):
-            messagebox.showerror("Error", "Top level of JSON must be an object (dictionary).")
-            return
-
-        all_errors = []
-
-        # Validate each top-level key
-        for item_name, item_data in json_data.items():
-            try:
-                MainItem(**item_data)
-            except ValidationError as e:
-                for error in e.errors():
-                    friendly_error = format_friendly_error(item_name, error)
-                    all_errors.append(friendly_error)
-
-        # Output results
-        if not all_errors:
-            messagebox.showinfo("Success!", "Validation Passed! All data matches your template perfectly.")
-        else:
-            # Combine all errors into one massive block of text
-            full_error_text = "".join(all_errors)
-            # Show our custom scrollable popup
-            show_error_window(root, full_error_text)
-
-    except json.JSONDecodeError as e:
-        messagebox.showerror("JSON Format Error", f"The file is not valid JSON.\nError: {str(e)}")
-    except Exception as e:
-        messagebox.showerror("Error", f"An unexpected error occurred:\n{str(e)}")
 
 if __name__ == "__main__":
     main()
