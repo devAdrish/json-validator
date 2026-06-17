@@ -15,6 +15,10 @@ class Highlight(BaseModel):
     value: Optional[str] = None
     tiers: Optional[List[HighlightTier]] = None
 
+class InvestmentDocument(BaseModel):
+    title: str
+    link: str
+
 class AboutItem(BaseModel):
     title: str
     value: str
@@ -62,9 +66,9 @@ class MainItem(BaseModel):
     keyPersonel: List[Any]
     info: str
     note: str
-    downloadLink: str
-    latestUpdateLink: str
-    downloadLinkPlacement: str
+    investmentDocsPlacement: str
+    investmentDocs: Optional[List[InvestmentDocument]] = None
+    latestUpdateDocs: Optional[List[InvestmentDocument]] = None
     ownershipBreakdown: Optional[OwnershipBreakdown] = None
 
 def format_friendly_error(item_name, error):
@@ -102,6 +106,12 @@ def validate_json_data(json_data):
 
     for item_name, item_data in json_data.items():
         if item_name.startswith("__"):
+            continue
+        if not isinstance(item_data, dict):
+            all_errors.append(
+                f"❌ [{item_name}]\n   Location: (top level)\n"
+                f"   Issue:    Expected an object, but got {type(item_data).__name__}.\n\n"
+            )
             continue
         try:
             MainItem(**item_data)
