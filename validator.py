@@ -6,6 +6,10 @@ from tkinter import filedialog, messagebox, ttk
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, ValidationError
 
+class HTML(BaseModel):
+    fileName: str
+    backgroundColor: str
+
 class HighlightTier(BaseModel):
     description: str
     value: str
@@ -52,6 +56,7 @@ class OwnershipBreakdown(BaseModel):
     chain: List[ChainItem]
 
 class MainItem(BaseModel):
+    html: Optional[HTML] = None
     subscription: str
     commitment: str
     highlights: List[Highlight]
