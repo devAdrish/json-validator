@@ -4,7 +4,7 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, StrictStr, StrictInt
 
 class VideoPresenter(BaseModel):
     avatar: str
@@ -15,8 +15,8 @@ class Video(BaseModel):
     link: str
     thumbnailImage: Optional[str] = None
     title: str
-    label: str
-    duration: str
+    kicker: str
+    duration: StrictStr | StrictInt
     presentedBy: Optional[VideoPresenter] = None
 
 class CTAStyle(BaseModel):
@@ -96,27 +96,24 @@ class MainItem(BaseModel):
     ownershipBreakdown: Optional[OwnershipBreakdown] = None
     video: Optional[Video] = None
 
-def format_friendly_error(item_name, error):
-    """Translates raw Pydantic errors into readable, human-friendly text."""
-    loc = error['loc']
-    raw_msg = error['msg']
-    
-    path_parts = []
-    for p in loc:
-        if isinstance(p, int):
-            path_parts.append(f"(Item {p + 1})")
-        else:
-            path_parts.append(str(p))
-            
+# Pydantic inserts a branch tag (e.g. 'str', 'int') into `loc` for each arm of a
+# union field. We drop those so errors for the same field group by their real location.
+_UNION_TAGS = {"str", "int", "float", "bool"}
+
+def format_friendly_error(item_name, loc, raw_msg, types=None):
+    """Translates a raw Pydantic error into readable, human-friendly text."""
+    path_parts = [f"(Item {p + 1})" if isinstance(p, int) else str(p) for p in loc]
     readable_path = " -> ".join(path_parts)
-    
-    if raw_msg == "Field required":
+
+    if types:
+        friendly_msg = f"Wrong data type (should be {' or '.join(types)})."
+    elif raw_msg == "Field required":
         friendly_msg = "This field is missing but is required."
-    elif "Input should be a valid" in raw_msg:
+    elif "should be a valid" in raw_msg:
         friendly_msg = f"Wrong data type ({raw_msg})."
     else:
         friendly_msg = raw_msg
-        
+
     return f"❌ [{item_name}]\n   Location: {readable_path}\n   Issue:    {friendly_msg}\n\n"
 
 def validate_json_data(json_data):
@@ -141,9 +138,17 @@ def validate_json_data(json_data):
         try:
             MainItem(**item_data)
         except ValidationError as e:
+            # Group errors by field location, collecting the accepted types so a
+            # union field (e.g. str | int) reports as a single "should be a or b".
+            grouped = {}  # loc -> {"msg": str, "types": [str]}
             for error in e.errors():
-                friendly_error = format_friendly_error(item_name, error)
-                all_errors.append(friendly_error)
+                loc = tuple(p for p in error['loc'] if p not in _UNION_TAGS)
+                g = grouped.setdefault(loc, {"msg": error['msg'], "types": []})
+                if "should be a valid" in error['msg']:
+                    g["types"].append(error['msg'].split("should be a valid")[-1].strip())
+            for loc, g in grouped.items():
+                types = list(dict.fromkeys(g["types"]))
+                all_errors.append(format_friendly_error(item_name, loc, g["msg"], types))
 
     if not all_errors:
         return True, "✅ Validation Passed! All data matches your template perfectly."
