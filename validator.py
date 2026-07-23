@@ -6,9 +6,28 @@ from tkinter import filedialog, messagebox, ttk
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, ValidationError
 
+class VideoPresenter(BaseModel):
+    avatar: str
+    name: str
+    role: str
+
+class Video(BaseModel):
+    link: str
+    thumbnailImage: Optional[str] = None
+    title: str
+    label: str
+    duration: str
+    presentedBy: Optional[VideoPresenter] = None
+
+class CTAStyle(BaseModel):
+    backgroundColor: str
+    textColor: str
+    borderColor: str
+
 class HTML(BaseModel):
     fileName: str
     backgroundColor: str
+    ctaStyle: CTAStyle
 
 class HighlightTier(BaseModel):
     description: str
@@ -75,6 +94,7 @@ class MainItem(BaseModel):
     investmentDocs: Optional[List[InvestmentDocument]] = None
     latestUpdateDocs: Optional[List[InvestmentDocument]] = None
     ownershipBreakdown: Optional[OwnershipBreakdown] = None
+    video: Optional[Video] = None
 
 def format_friendly_error(item_name, error):
     """Translates raw Pydantic errors into readable, human-friendly text."""

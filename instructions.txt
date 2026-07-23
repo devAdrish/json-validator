@@ -1,4 +1,5 @@
 WINDOWS: pyinstaller --noconsole --onefile --splash loading.png validator.py
-
 MAC: pyinstaller --windowed validator.py
 
+
+pyinstaller --windowed validator.py -y
