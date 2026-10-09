@@ -7,12 +7,12 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, ValidationError, StrictStr, StrictInt
 
 class VideoPresenter(BaseModel):
-    avatar: str
+    avatar: Optional[str] = None
     name: str
     role: str
 
 class Video(BaseModel):
-    link: str
+    url: str
     thumbnailImage: Optional[str] = None
     title: str
     kicker: str
